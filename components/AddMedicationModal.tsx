@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pill, Plus, Trash2, X, Clock } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import type { Frequency, Medication } from "@/lib/types";
+import { medicineSuggestions, checkInteractions } from "@/lib/pillData";
 
 const COLORS = [
   "#FACC15",
@@ -41,7 +42,7 @@ interface Props {
 }
 
 export default function AddMedicationModal({ open, onClose, editing }: Props) {
-  const { addMedication, updateMedication } = useApp();
+  const { addMedication, updateMedication, medications } = useApp();
 
   const [color, setColor] = useState(COLORS[3]);
   const [name, setName] = useState("");
@@ -110,6 +111,15 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
     if (!name.trim()) return setError("Please enter a medication name.");
     if (!dosage.trim()) return setError("Please enter a dosage.");
     if (totalDoses <= 0) return setError("Total doses must be greater than zero.");
+
+    // Check for interactions
+    const activeMeds = medications.map(m => m.name);
+    const interactionWarnings = checkInteractions(name.trim(), activeMeds);
+
+    if (interactionWarnings.length > 0) {
+      const proceed = confirm(`Warning: ${interactionWarnings.join(' ')}\n\nContinue anyway?`);
+      if (!proceed) return;
+    }
 
     const payload = {
       name: name.trim(),
@@ -193,7 +203,13 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Aspirin"
               className={inputCls}
+              list="medicine-suggestions"
             />
+            <datalist id="medicine-suggestions">
+              {medicineSuggestions.map((medicine) => (
+                <option key={medicine} value={medicine} />
+              ))}
+            </datalist>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
