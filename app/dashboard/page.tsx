@@ -11,6 +11,7 @@ import Layout from "@/components/Layout";
 import DoseTracker from "@/components/DoseTracker";
 import { useApp } from "@/context/AppContext";
 import { buildScheduleForDay } from "@/lib/schedule";
+import { calculateAdherenceRate, getHealthScore, getHealthTip, medicineSuggestions } from "@/lib/pillData";
 
 export default function DashboardPage() {
   const { user, medications, logs } = useApp();
@@ -35,6 +36,12 @@ export default function DashboardPage() {
       ? "All done for today!"
       : `${takenToday}/${todays.length} doses taken so far`;
 
+  // Enhanced health metrics
+  const activeMedications = medications.filter(m => m.remainingDoses > 0);
+  const healthScore = useMemo(() => getHealthScore(activeMedications, []), [activeMedications]);
+  const adherenceRate = useMemo(() => calculateAdherenceRate(activeMedications), [activeMedications]);
+  const dailyTip = useMemo(() => getHealthTip(activeMedications.map(m => m.name)), [activeMedications]);
+
   return (
     <Layout>
       {/* Greeting + avatar */}
@@ -49,6 +56,53 @@ export default function DashboardPage() {
           {user?.name.charAt(0).toUpperCase()}
         </div>
       </header>
+
+      {/* Health Metrics */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-gradient-to-r from-green-400 to-blue-500 p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-90">Health Score</p>
+              <p className="text-2xl font-bold">{healthScore.score}</p>
+              <p className="text-xs opacity-75">{healthScore.level}</p>
+            </div>
+            <div className="text-3xl">🏥</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-gradient-to-r from-purple-400 to-pink-500 p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-90">Adherence Rate</p>
+              <p className="text-2xl font-bold">{adherenceRate}%</p>
+              <p className="text-xs opacity-75">Medication compliance</p>
+            </div>
+            <div className="text-3xl">📊</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-90">Active Medicines</p>
+              <p className="text-2xl font-bold">{activeMedications.length}</p>
+              <p className="text-xs opacity-75">Currently tracking</p>
+            </div>
+            <div className="text-3xl">💊</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily Health Tip */}
+      <div className="mt-6 rounded-2xl bg-blue-50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">💡</div>
+          <div>
+            <h3 className="font-semibold text-slate-900">Daily Health Tip</h3>
+            <p className="mt-1 text-sm text-slate-600">{dailyTip}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Week strip */}
       <div className="mt-8 grid grid-cols-7 gap-1.5 sm:gap-3">

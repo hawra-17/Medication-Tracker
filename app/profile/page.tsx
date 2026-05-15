@@ -10,26 +10,31 @@ import {
   Pencil,
   Pill,
   TrendingUp,
+  Phone,
 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useApp } from "@/context/AppContext";
 import { computeAdherence, computeStreak } from "@/lib/schedule";
+import { getHealthScore, emergencyContact } from "@/lib/pillData";
+import EmergencyModal from "@/components/EmergencyModal";
 
 export default function ProfilePage() {
   const { user, medications, logs, signOut, updateProfile, exportData } =
     useApp();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
+  const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
 
   const adherence = useMemo(() => computeAdherence(logs, 30), [logs]);
   const streak = useMemo(() => computeStreak(logs), [logs]);
   const taken = logs.filter((l) => l.status === "taken").length;
+  const healthScore = useMemo(() => getHealthScore(medications, []), [medications]);
 
   if (!user) return null;
 
-  const saveName = () => {
-    if (name.trim()) updateProfile({ name: name.trim() });
-    setEditing(false);
+  const handleEmergencyCall = () => {
+    window.location.href = `tel:${emergencyContact.phone}`;
+    setEmergencyModalOpen(false);
   };
 
   return (
@@ -101,7 +106,7 @@ export default function ProfilePage() {
       <h3 className="mt-8 font-display text-base font-bold text-slate-900">
         Your Stats
       </h3>
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat
           icon={<Pill className="h-4 w-4" />}
           label="Active medications"
@@ -116,6 +121,12 @@ export default function ProfilePage() {
         />
         <Stat
           icon={<TrendingUp className="h-4 w-4" />}
+          label="Health Score"
+          value={`${healthScore.score}`}
+          tone="purple"
+        />
+        <Stat
+          icon={<CalendarDays className="h-4 w-4" />}
           label="Monthly adherence"
           value={`${adherence}%`}
           tone="amber"
@@ -126,6 +137,29 @@ export default function ProfilePage() {
           value={`${streak}`}
           tone="amber"
         />
+      </div>
+
+      {/* Emergency Contact */}
+      <h3 className="mt-8 font-display text-base font-bold text-slate-900">
+        Emergency Contact
+      </h3>
+      <div className="mt-3">
+        <button
+          onClick={() => setEmergencyModalOpen(true)}
+          className="flex items-center gap-3 rounded-2xl bg-red-50 p-4 text-left shadow-card transition hover:bg-red-100"
+        >
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-red-100 text-red-500">
+            <Phone className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-700">
+              {emergencyContact.name}
+            </p>
+            <p className="text-xs text-red-600">
+              {emergencyContact.phone}
+            </p>
+          </div>
+        </button>
       </div>
 
       {/* Account */}
@@ -160,6 +194,12 @@ export default function ProfilePage() {
           <p className="text-sm font-semibold text-rose-500">Sign Out</p>
         </button>
       </div>
+
+      <EmergencyModal
+        isOpen={emergencyModalOpen}
+        onClose={() => setEmergencyModalOpen(false)}
+        onConfirm={handleEmergencyCall}
+      />
     </Layout>
   );
 }
@@ -173,12 +213,13 @@ function Stat({
   icon: React.ReactNode;
   label: string;
   value: string;
-  tone: "cyan" | "emerald" | "amber";
+  tone: "cyan" | "emerald" | "amber" | "purple";
 }) {
   const tints: Record<string, string> = {
     cyan: "bg-cyan-50 text-cyan-500",
     emerald: "bg-emerald-50 text-emerald-500",
     amber: "bg-amber-50 text-amber-500",
+    purple: "bg-purple-50 text-purple-500",
   };
   return (
     <div className="rounded-3xl bg-white p-5 shadow-card">

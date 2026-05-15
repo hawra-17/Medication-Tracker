@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { Pill, Plus, Trash2, X, Clock } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import type { Frequency, Medication } from "@/lib/types";
+import { medicineSuggestions, checkInteractions } from "@/lib/pillData";
+import InteractionModal from "./InteractionModal";
+import MedicineSelector from "./MedicineSelector";
 
 const COLORS = [
   "#FACC15",
@@ -41,7 +44,7 @@ interface Props {
 }
 
 export default function AddMedicationModal({ open, onClose, editing }: Props) {
-  const { addMedication, updateMedication } = useApp();
+  const { addMedication, updateMedication, medications } = useApp();
 
   const [color, setColor] = useState(COLORS[3]);
   const [name, setName] = useState("");
@@ -58,6 +61,8 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
   const [prescriber, setPrescriber] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [interactionModalOpen, setInteractionModalOpen] = useState(false);
+  const [pendingMedication, setPendingMedication] = useState<any>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -111,6 +116,10 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
     if (!dosage.trim()) return setError("Please enter a dosage.");
     if (totalDoses <= 0) return setError("Total doses must be greater than zero.");
 
+    // Check for interactions
+    const activeMeds = medications.map(m => m.name);
+    const interactionWarnings = checkInteractions(name.trim(), activeMeds);
+
     const payload = {
       name: name.trim(),
       dosage: dosage.trim(),
@@ -126,9 +135,24 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
       notes: notes.trim() || undefined,
     };
 
-    if (editing) updateMedication(editing.id, payload);
-    else addMedication(payload);
-    onClose();
+    if (interactionWarnings.length > 0) {
+      setPendingMedication(payload);
+      setInteractionModalOpen(true);
+    } else {
+      if (editing) updateMedication(editing.id, payload);
+      else addMedication(payload);
+      onClose();
+    }
+  };
+
+  const handleConfirmInteraction = () => {
+    if (pendingMedication) {
+      if (editing) updateMedication(editing.id, pendingMedication);
+      else addMedication(pendingMedication);
+      onClose();
+    }
+    setInteractionModalOpen(false);
+    setPendingMedication(null);
   };
 
   if (!open) return null;
@@ -188,11 +212,10 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
           </div>
 
           <Field label="Medication Name">
-            <input
+            <MedicineSelector
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Aspirin"
-              className={inputCls}
+              onChange={setName}
+              placeholder="Choose or type medicine name"
             />
           </Field>
 
@@ -368,6 +391,14 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
           </button>
         </form>
       </div>
+
+      <InteractionModal
+        isOpen={interactionModalOpen}
+        onClose={() => setInteractionModalOpen(false)}
+        onConfirm={handleConfirmInteraction}
+        warnings={checkInteractions(name.trim(), medications.map(m => m.name))}
+        medicineName={name.trim()}
+      />
     </div>
   );
 }

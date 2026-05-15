@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Pill, Clock, AlertCircle } from "lucide-react";
+import { Pill, Clock, AlertCircle, AlertTriangle } from "lucide-react";
 import type { Medication } from "@/lib/types";
 import { formatTime } from "@/lib/schedule";
+import { getPillInteraction } from "@/lib/pillData";
 
 const FREQ_LABEL: Record<Medication["frequency"], string> = {
   daily: "Once daily",
@@ -68,6 +69,16 @@ export default function MedicationCard({
               ))}
             </div>
           )}
+
+          {/* Interaction Info */}
+          <div className="mt-3 rounded-lg bg-slate-50 p-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {getPillInteraction(medication.name)}
+              </p>
+            </div>
+          </div>
 
           <div className="mt-4">
             <div className="flex items-center justify-between text-[11px] text-slate-500">
