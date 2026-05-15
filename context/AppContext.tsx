@@ -10,6 +10,9 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase } from "@/lib/supabase";
 import {
   deleteLogsForMedication,
@@ -373,25 +376,84 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const exportData = useCallback(() => {
     if (!user) return;
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      user: { id: user.id, name: user.name, email: user.email },
-      medications,
-      logs,
+    const fmt = (iso?: string) => {
+      if (!iso) return "—";
+      try {
+        return format(parseISO(iso), "MMM d, yyyy");
+      } catch {
+        return iso;
+      }
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
+    const fmtDateTime = (iso?: string) => {
+      if (!iso) return "—";
+      try {
+        return format(parseISO(iso), "MMM d, yyyy h:mm a");
+      } catch {
+        return iso;
+      }
+    };
+
+    const doc = new jsPDF();
+    const generatedOn = format(new Date(), "MMM d, yyyy h:mm a");
+
+    doc.setFontSize(18);
+    doc.text("MedRemind — Health Report", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`${user.name}  •  ${user.email}`, 14, 26);
+    doc.text(`Generated ${generatedOn}`, 14, 32);
+    doc.setTextColor(0);
+
+    doc.setFontSize(13);
+    doc.text("Medications", 14, 44);
+    autoTable(doc, {
+      startY: 48,
+      head: [
+        ["Name", "Dosage", "Frequency", "Remaining", "Start", "End", "Prescriber"],
+      ],
+      body: medications.map((m) => [
+        m.name,
+        `${m.dosage} ${m.unit}`,
+        m.frequency,
+        `${m.remainingDoses}/${m.totalDoses}`,
+        fmt(m.startDate),
+        fmt(m.endDate),
+        m.prescriber || "—",
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 211, 238] },
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `medremind-${user.name.replace(/\s+/g, "-").toLowerCase()}-${new Date()
-      .toISOString()
-      .slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+
+    const medName = (id: string) =>
+      medications.find((m) => m.id === id)?.name ?? "Unknown";
+    const sortedLogs = [...logs].sort(
+      (a, b) =>
+        parseISO(b.scheduledFor).getTime() -
+        parseISO(a.scheduledFor).getTime()
+    );
+
+    // @ts-expect-error lastAutoTable is added by jspdf-autotable at runtime
+    const afterMeds = (doc.lastAutoTable?.finalY ?? 60) + 12;
+    doc.setFontSize(13);
+    doc.text("Dose History", 14, afterMeds);
+    autoTable(doc, {
+      startY: afterMeds + 4,
+      head: [["Medication", "Scheduled For", "Status", "Taken At"]],
+      body: sortedLogs.map((l) => [
+        medName(l.medicationId),
+        fmtDateTime(l.scheduledFor),
+        l.status,
+        fmtDateTime(l.takenAt),
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 211, 238] },
+    });
+
+    doc.save(
+      `medremind-${user.name.replace(/\s+/g, "-").toLowerCase()}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.pdf`
+    );
   }, [user, medications, logs]);
 
   const value = useMemo<AppContextValue>(

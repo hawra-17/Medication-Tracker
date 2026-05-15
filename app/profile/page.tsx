@@ -316,7 +316,7 @@ export default function ProfilePage() {
               Export my data
             </p>
             <p className="text-xs text-slate-500">
-              Download all medications and dose history as JSON
+              Download all medications and dose history as PDF file
             </p>
           </div>
         </button>
