@@ -101,7 +101,7 @@ const logToRow = (l: DoseLog): LogRow => ({
 export const getProfile = async (userId: string): Promise<User | null> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, created_at")
+    .select("id, name, email, created_at, timezone")
     .eq("id", userId)
     .single();
   if (error || !data) return null;
@@ -110,12 +110,13 @@ export const getProfile = async (userId: string): Promise<User | null> => {
     name: data.name,
     email: data.email,
     createdAt: data.created_at,
+    timezone: data.timezone ?? undefined,
   };
 };
 
 export const saveProfile = async (
   userId: string,
-  patch: Partial<Pick<User, "name" | "email">>
+  patch: Partial<Pick<User, "name" | "email" | "timezone">>
 ): Promise<void> => {
   await supabase.from("profiles").update(patch).eq("id", userId);
 };

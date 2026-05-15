@@ -222,8 +222,16 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Dosage">
               <input
+                type="text"
+                inputMode="decimal"
                 value={dosage}
-                onChange={(e) => setDosage(e.target.value)}
+                onChange={(e) => {
+                  // Allow digits and a single decimal point only.
+                  const cleaned = e.target.value
+                    .replace(/[^\d.]/g, "")
+                    .replace(/(\..*)\./g, "$1");
+                  setDosage(cleaned);
+                }}
                 placeholder="e.g., 1"
                 className={inputCls}
               />
@@ -266,8 +274,11 @@ export default function AddMedicationModal({ open, onClose, editing }: Props) {
             <input
               type="number"
               min={1}
-              value={totalDoses}
-              onChange={(e) => setTotalDoses(parseInt(e.target.value || "0", 10))}
+              value={totalDoses === 0 ? "" : totalDoses}
+              onChange={(e) => {
+                const v = e.target.value;
+                setTotalDoses(v === "" ? 0 : parseInt(v, 10));
+              }}
               className={inputCls}
             />
           </Field>

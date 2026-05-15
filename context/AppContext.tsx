@@ -99,6 +99,18 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(profile);
       setMedications(meds);
       setLogs(ls);
+
+      // Keep the user's timezone in sync so the server can compute
+      // their local dose times for missed-dose emails.
+      try {
+        const browserTz =
+          Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        if (profile.timezone !== browserTz) {
+          void saveProfile(authUserId, { timezone: browserTz });
+        }
+      } catch {
+        /* Intl unavailable — leave timezone as-is */
+      }
     },
     []
   );
@@ -153,8 +165,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         const diff = (now.getTime() - due.getTime()) / 1000;
         if (
           s.status === "pending" &&
-          diff >= 0 &&
-          diff <= 90 &&
+          // From 30s before the dose up to 30 min after, so a throttled
+          // or delayed tick still notifies (deduped via lastFiredRef).
+          diff >= -30 &&
+          diff <= 1800 &&
           !lastFiredRef.current.has(s.scheduledFor + s.medication.id)
         ) {
           lastFiredRef.current.add(s.scheduledFor + s.medication.id);
@@ -297,6 +311,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         takenAt: status === "taken" ? new Date().toISOString() : undefined,
         note,
       };
+      let nextLogs: DoseLog[] = [];
       setLogs((prev) => {
         const idx = prev.findIndex(
           (l) =>
@@ -304,6 +319,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         );
         const next = idx >= 0 ? [...prev] : [...prev, log];
         if (idx >= 0) next[idx] = log;
+        nextLogs = next;
         return next;
       });
       void upsertLog(log).catch((e) => {
@@ -314,21 +330,20 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
 
-      // Adjust remaining doses
+      // Remaining doses are derived from how many doses are marked
+      // "taken" for this medication — always correct, even after reload
+      // or when toggling a dose back from taken.
+      const takenCount = nextLogs.filter(
+        (l) => l.medicationId === medicationId && l.status === "taken"
+      ).length;
       let nextRemaining: number | null = null;
       setMedications((prev) =>
         prev.map((m) => {
           if (m.id !== medicationId) return m;
-          let remaining = m.remainingDoses;
-          if (status === "taken" && (!already || already.status !== "taken")) {
-            remaining = Math.max(0, remaining - 1);
-          } else if (
-            status !== "taken" &&
-            already &&
-            already.status === "taken"
-          ) {
-            remaining = Math.min(m.totalDoses, remaining + 1);
-          }
+          // Each taken dose consumes `dosage` units (e.g. 2 tablets),
+          // so subtract dosage-per-dose × number of taken doses.
+          const perDose = parseFloat(m.dosage) || 1;
+          const remaining = Math.max(0, m.totalDoses - takenCount * perDose);
           nextRemaining = remaining;
           return { ...m, remainingDoses: remaining };
         })
