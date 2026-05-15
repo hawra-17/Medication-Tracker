@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   addDays,
   format,
@@ -65,9 +66,13 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-base text-slate-500">{subtitle}</p>
         </div>
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-300 via-sky-300 to-orange-300 font-display font-bold text-white">
+        <Link
+          href="/profile"
+          aria-label="Open profile"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-300 via-sky-300 to-orange-300 font-display font-bold text-white transition hover:brightness-105 active:scale-95"
+        >
           {user?.name.charAt(0).toUpperCase()}
-        </div>
+        </Link>
       </header>
 
       {/* Health Metrics */}
