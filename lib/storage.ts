@@ -70,13 +70,19 @@ type LogRow = {
   note: string | null;
 };
 
+// Postgres timestamptz round-trips into a different string format than
+// the canonical Date.toISOString() used to build schedule slots, which
+// would break exact-string dose matching. Normalize back on read.
+const toIso = (v: string | null): string | undefined =>
+  v ? new Date(v).toISOString() : undefined;
+
 const rowToLog = (r: LogRow): DoseLog => ({
   id: r.id,
   userId: r.user_id,
   medicationId: r.medication_id,
-  scheduledFor: r.scheduled_for,
+  scheduledFor: toIso(r.scheduled_for) ?? r.scheduled_for,
   status: r.status,
-  takenAt: r.taken_at ?? undefined,
+  takenAt: toIso(r.taken_at),
   note: r.note ?? undefined,
 });
 
@@ -172,7 +178,8 @@ export const getLogs = async (uid: string): Promise<DoseLog[]> => {
 };
 
 export const upsertLog = async (log: DoseLog): Promise<void> => {
-  await supabase.from("dose_logs").upsert(logToRow(log));
+  const { error } = await supabase.from("dose_logs").upsert(logToRow(log));
+  if (error) throw error;
 };
 
 export const deleteLogsForMedication = async (

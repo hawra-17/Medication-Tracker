@@ -306,7 +306,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         if (idx >= 0) next[idx] = log;
         return next;
       });
-      void upsertLog(log);
+      void upsertLog(log).catch((e) => {
+        console.error("Supabase upsertLog failed:", e);
+        const msg = e?.message || e?.error_description || JSON.stringify(e);
+        if (typeof window !== "undefined") {
+          window.alert(`Could not save dose:\n\n${msg}`);
+        }
+      });
 
       // Adjust remaining doses
       let nextRemaining: number | null = null;
