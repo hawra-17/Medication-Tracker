@@ -16,12 +16,14 @@ import Layout from "@/components/Layout";
 import { useApp } from "@/context/AppContext";
 import { computeAdherence, computeStreak } from "@/lib/schedule";
 import { getHealthScore, emergencyContact } from "@/lib/pillData";
+import EmergencyModal from "@/components/EmergencyModal";
 
 export default function ProfilePage() {
   const { user, medications, logs, signOut, updateProfile, exportData } =
     useApp();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
+  const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
 
   const adherence = useMemo(() => computeAdherence(logs, 30), [logs]);
   const streak = useMemo(() => computeStreak(logs), [logs]);
@@ -30,9 +32,9 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  const saveName = () => {
-    if (name.trim()) updateProfile({ name: name.trim() });
-    setEditing(false);
+  const handleEmergencyCall = () => {
+    window.location.href = `tel:${emergencyContact.phone}`;
+    setEmergencyModalOpen(false);
   };
 
   return (
@@ -143,7 +145,7 @@ export default function ProfilePage() {
       </h3>
       <div className="mt-3">
         <button
-          onClick={() => window.location.href = `tel:${emergencyContact.phone}`}
+          onClick={() => setEmergencyModalOpen(true)}
           className="flex items-center gap-3 rounded-2xl bg-red-50 p-4 text-left shadow-card transition hover:bg-red-100"
         >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-red-100 text-red-500">
@@ -192,6 +194,12 @@ export default function ProfilePage() {
           <p className="text-sm font-semibold text-rose-500">Sign Out</p>
         </button>
       </div>
+
+      <EmergencyModal
+        isOpen={emergencyModalOpen}
+        onClose={() => setEmergencyModalOpen(false)}
+        onConfirm={handleEmergencyCall}
+      />
     </Layout>
   );
 }

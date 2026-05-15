@@ -37,9 +37,10 @@ export default function DashboardPage() {
       : `${takenToday}/${todays.length} doses taken so far`;
 
   // Enhanced health metrics
-  const healthScore = useMemo(() => getHealthScore(medications, []), [medications]);
-  const adherenceRate = useMemo(() => calculateAdherenceRate(medications), [medications]);
-  const dailyTip = useMemo(() => getHealthTip(medications.map(m => m.name)), [medications]);
+  const activeMedications = medications.filter(m => m.remainingDoses > 0);
+  const healthScore = useMemo(() => getHealthScore(activeMedications, []), [activeMedications]);
+  const adherenceRate = useMemo(() => calculateAdherenceRate(activeMedications), [activeMedications]);
+  const dailyTip = useMemo(() => getHealthTip(activeMedications.map(m => m.name)), [activeMedications]);
 
   return (
     <Layout>
@@ -84,7 +85,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium opacity-90">Active Medicines</p>
-              <p className="text-2xl font-bold">{medications.length}</p>
+              <p className="text-2xl font-bold">{activeMedications.length}</p>
               <p className="text-xs opacity-75">Currently tracking</p>
             </div>
             <div className="text-3xl">💊</div>
