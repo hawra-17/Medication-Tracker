@@ -10,8 +10,12 @@ import {
 import Layout from "@/components/Layout";
 import DoseTracker from "@/components/DoseTracker";
 import { useApp } from "@/context/AppContext";
-import { buildScheduleForDay } from "@/lib/schedule";
-import { calculateAdherenceRate, getHealthScore, getHealthTip, medicineSuggestions } from "@/lib/pillData";
+import {
+  buildScheduleForDay,
+  computeAdherence,
+  computeHealthScore,
+} from "@/lib/schedule";
+import { getHealthTip } from "@/lib/pillData";
 
 export default function DashboardPage() {
   const { user, medications, logs } = useApp();
@@ -38,9 +42,18 @@ export default function DashboardPage() {
 
   // Enhanced health metrics
   const activeMedications = medications.filter(m => m.remainingDoses > 0);
-  const healthScore = useMemo(() => getHealthScore(activeMedications, []), [activeMedications]);
-  const adherenceRate = useMemo(() => calculateAdherenceRate(activeMedications), [activeMedications]);
-  const dailyTip = useMemo(() => getHealthTip(activeMedications.map(m => m.name)), [activeMedications]);
+  const healthScore = useMemo(
+    () => computeHealthScore(medications, logs),
+    [medications, logs]
+  );
+  const adherenceRate = useMemo(
+    () => computeAdherence(logs, 30),
+    [logs]
+  );
+  const dailyTip = useMemo(
+    () => getHealthTip(activeMedications.map((m) => m.name) as never),
+    [activeMedications]
+  );
 
   return (
     <Layout>

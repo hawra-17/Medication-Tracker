@@ -68,6 +68,38 @@ export const computeAdherence = (
   return Math.round((taken / recent.length) * 100);
 };
 
+// Real health score derived from actual dose history, so it changes
+// as the user takes / skips doses.
+export const computeHealthScore = (
+  meds: Medication[],
+  logs: DoseLog[]
+): { score: number; level: string } => {
+  const activeMeds = meds.filter((m) => m.remainingDoses > 0);
+  const adherence = computeAdherence(logs, 30); // 0–100
+  const recent = logs.filter(
+    (l) => parseISO(l.scheduledFor) >= subDays(new Date(), 30)
+  );
+  const hasHistory = recent.length > 0;
+
+  // No doses recorded yet → neutral starting score, not a misleading 0.
+  if (!hasHistory) {
+    return {
+      score: activeMeds.length > 0 ? 50 : 0,
+      level: activeMeds.length > 0 ? "Good" : "Needs Improvement",
+    };
+  }
+
+  const streak = Math.min(computeStreak(logs), 10);
+  const score = Math.round(
+    adherence * 0.7 +
+      (Math.min(activeMeds.length, 3) / 3) * 10 +
+      (streak / 10) * 20
+  );
+  const level =
+    score >= 75 ? "Excellent" : score >= 50 ? "Good" : "Needs Improvement";
+  return { score, level };
+};
+
 export const computeStreak = (logs: DoseLog[]): number => {
   if (logs.length === 0) return 0;
   let streak = 0;

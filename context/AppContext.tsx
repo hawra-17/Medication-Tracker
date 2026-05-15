@@ -44,6 +44,9 @@ interface AppContextValue {
   ) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => void;
   updateProfile: (patch: Partial<Pick<User, "name" | "email">>) => void;
+  changePassword: (
+    newPassword: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   medications: Medication[];
   logs: DoseLog[];
   addMedication: (
@@ -250,6 +253,17 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     [user]
   );
 
+  const changePassword = useCallback<AppContextValue["changePassword"]>(
+    async (newPassword) => {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    },
+    []
+  );
+
   const addMedication = useCallback<AppContextValue["addMedication"]>(
     (m) => {
       if (!user) throw new Error("Not signed in");
@@ -388,6 +402,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       signUp,
       signOut,
       updateProfile,
+      changePassword,
       medications,
       logs,
       addMedication,
@@ -403,6 +418,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       signUp,
       signOut,
       updateProfile,
+      changePassword,
       medications,
       logs,
       addMedication,

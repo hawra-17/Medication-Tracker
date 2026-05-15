@@ -11,24 +11,45 @@ import {
   Pill,
   TrendingUp,
   Phone,
+  Lock,
 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useApp } from "@/context/AppContext";
-import { computeAdherence, computeStreak } from "@/lib/schedule";
-import { getHealthScore, emergencyContact } from "@/lib/pillData";
+import {
+  computeAdherence,
+  computeStreak,
+  computeHealthScore,
+} from "@/lib/schedule";
+import { emergencyContact } from "@/lib/pillData";
 import EmergencyModal from "@/components/EmergencyModal";
 
 export default function ProfilePage() {
-  const { user, medications, logs, signOut, updateProfile, exportData } =
-    useApp();
+  const {
+    user,
+    medications,
+    logs,
+    signOut,
+    updateProfile,
+    changePassword,
+    exportData,
+  } = useApp();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwBusy, setPwBusy] = useState(false);
 
   const adherence = useMemo(() => computeAdherence(logs, 30), [logs]);
   const streak = useMemo(() => computeStreak(logs), [logs]);
   const taken = logs.filter((l) => l.status === "taken").length;
-  const healthScore = useMemo(() => getHealthScore(medications, []), [medications]);
+  const healthScore = useMemo(
+    () => computeHealthScore(medications, logs),
+    [medications, logs]
+  );
 
   if (!user) return null;
 
@@ -36,6 +57,31 @@ export default function ProfilePage() {
     const trimmed = name.trim();
     if (trimmed) updateProfile({ name: trimmed });
     setEditing(false);
+  };
+
+  const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwMsg(null);
+    if (newPw.length < 6) {
+      setPwError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("Passwords do not match.");
+      return;
+    }
+    setPwBusy(true);
+    const res = await changePassword(newPw);
+    setPwBusy(false);
+    if (!res.ok) {
+      setPwError(res.error ?? "Could not update password.");
+      return;
+    }
+    setNewPw("");
+    setConfirmPw("");
+    setPwOpen(false);
+    setPwMsg("Password updated successfully.");
   };
 
   const handleEmergencyCall = () => {
@@ -173,6 +219,91 @@ export default function ProfilePage() {
         Account
       </h3>
       <div className="mt-3 flex flex-col gap-2">
+        {!pwOpen ? (
+          <button
+            onClick={() => {
+              setPwOpen(true);
+              setPwError(null);
+              setPwMsg(null);
+            }}
+            className="flex items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-card transition hover:bg-slate-50"
+          >
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-500">
+              <Lock className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-900">
+                Change password
+              </p>
+              <p className="text-xs text-slate-500">
+                Update your account password
+              </p>
+            </div>
+          </button>
+        ) : (
+          <form
+            onSubmit={submitPassword}
+            className="rounded-2xl bg-white p-4 shadow-card"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-500">
+                <Lock className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-semibold text-slate-900">
+                Change password
+              </p>
+            </div>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="New password"
+              className="mt-3 w-full rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-900 ring-1 ring-slate-200 outline-none focus:ring-cyan-300"
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              placeholder="Confirm new password"
+              className="mt-2 w-full rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-900 ring-1 ring-slate-200 outline-none focus:ring-cyan-300"
+            />
+            {pwError && (
+              <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                {pwError}
+              </p>
+            )}
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPwOpen(false);
+                  setNewPw("");
+                  setConfirmPw("");
+                  setPwError(null);
+                }}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-600 hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={pwBusy}
+                className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {pwBusy ? "Saving…" : "Update password"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {pwMsg && (
+          <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-600">
+            {pwMsg}
+          </p>
+        )}
+
         <button
           onClick={exportData}
           className="flex items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-card transition hover:bg-slate-50"
