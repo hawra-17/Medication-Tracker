@@ -32,6 +32,12 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const saveName = () => {
+    const trimmed = name.trim();
+    if (trimmed) updateProfile({ name: trimmed });
+    setEditing(false);
+  };
+
   const handleEmergencyCall = () => {
     window.location.href = `tel:${emergencyContact.phone}`;
     setEmergencyModalOpen(false);

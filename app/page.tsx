@@ -21,7 +21,7 @@ export default function AuthPage() {
     if (ready && user) router.replace("/dashboard");
   }, [ready, user, router]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!email.trim() || !password) {
@@ -32,15 +32,15 @@ export default function AuthPage() {
       setError("Please enter your full name.");
       return;
     }
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
     setBusy(true);
     const res =
       tab === "signin"
-        ? signIn(email, password)
-        : signUp(name, email, password);
+        ? await signIn(email, password)
+        : await signUp(name, email, password);
     if (!res.ok) setError(res.error ?? "Something went wrong.");
     setBusy(false);
   };
